@@ -29,7 +29,7 @@ test("adds and persists song and picture memories", async ({ page }) => {
   await expect(page.getByText("Sweet Disposition")).toBeVisible();
 
   await page.getByRole("button", { name: "Add a picture" }).click();
-  await page.getByLabel("Picture").setInputFiles({
+  await page.getByLabel("Picture", { exact: true }).setInputFiles({
     name: "blue-hour.png",
     mimeType: "image/png",
     buffer: Buffer.from(
