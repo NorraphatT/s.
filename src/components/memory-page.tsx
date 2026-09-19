@@ -439,17 +439,23 @@ export function MemoryPage() {
   const [storageError, setStorageError] = useState("");
 
   useEffect(() => {
-    try {
-      setArchive(parseMemoryArchive(window.localStorage.getItem(MEMORY_STORAGE_KEY)));
-      setStatus("ready");
-    } catch (error) {
-      setStorageError(
-        error instanceof Error
-          ? error.message
-          : "The saved memory archive could not be read.",
-      );
-      setStatus("error");
-    }
+    const timer = window.setTimeout(() => {
+      try {
+        setArchive(
+          parseMemoryArchive(window.localStorage.getItem(MEMORY_STORAGE_KEY)),
+        );
+        setStatus("ready");
+      } catch (error) {
+        setStorageError(
+          error instanceof Error
+            ? error.message
+            : "The saved memory archive could not be read.",
+        );
+        setStatus("error");
+      }
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   function persist(next: MemoryArchive) {
