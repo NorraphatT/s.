@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useMemo, useState, useSyncExternalStore } from "react";
 import {
   ArrowDown,
   ArrowUpRight,
@@ -93,6 +93,26 @@ const FEATURED_PICTURES: PictureMemory[] = [
 ];
 
 type ArchiveStatus = "loading" | "ready" | "error";
+const SERVER_SNAPSHOT = "__memory-archive-loading__";
+const EMPTY_SNAPSHOT = "__memory-archive-empty__";
+const ARCHIVE_CHANGE_EVENT = "memory-archive-change";
+
+function subscribeToArchive(callback: () => void) {
+  window.addEventListener("storage", callback);
+  window.addEventListener(ARCHIVE_CHANGE_EVENT, callback);
+  return () => {
+    window.removeEventListener("storage", callback);
+    window.removeEventListener(ARCHIVE_CHANGE_EVENT, callback);
+  };
+}
+
+function getArchiveSnapshot() {
+  return window.localStorage.getItem(MEMORY_STORAGE_KEY) ?? EMPTY_SNAPSHOT;
+}
+
+function getServerArchiveSnapshot() {
+  return SERVER_SNAPSHOT;
+}
 
 function createId(prefix: string) {
   const id =
@@ -434,42 +454,54 @@ function ArchiveLoading() {
 }
 
 export function MemoryPage() {
-  const [archive, setArchive] = useState<MemoryArchive>(createEmptyArchive);
-  const [status, setStatus] = useState<ArchiveStatus>("loading");
-  const [storageError, setStorageError] = useState("");
+  const rawArchive = useSyncExternalStore(
+    subscribeToArchive,
+    getArchiveSnapshot,
+    getServerArchiveSnapshot,
+  );
+  const [writeError, setWriteError] = useState("");
+  const parsedArchive = useMemo(() => {
+    if (rawArchive === SERVER_SNAPSHOT) {
+      return {
+        archive: createEmptyArchive(),
+        status: "loading" as ArchiveStatus,
+        error: "",
+      };
+    }
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      try {
-        setArchive(
-          parseMemoryArchive(window.localStorage.getItem(MEMORY_STORAGE_KEY)),
-        );
-        setStatus("ready");
-      } catch (error) {
-        setStorageError(
+    try {
+      return {
+        archive: parseMemoryArchive(
+          rawArchive === EMPTY_SNAPSHOT ? null : rawArchive,
+        ),
+        status: "ready" as ArchiveStatus,
+        error: "",
+      };
+    } catch (error) {
+      return {
+        archive: createEmptyArchive(),
+        status: "error" as ArchiveStatus,
+        error:
           error instanceof Error
             ? error.message
             : "The saved memory archive could not be read.",
-        );
-        setStatus("error");
-      }
-    }, 0);
-
-    return () => window.clearTimeout(timer);
-  }, []);
+      };
+    }
+  }, [rawArchive]);
+  const archive = parsedArchive.archive;
+  const status: ArchiveStatus = writeError ? "error" : parsedArchive.status;
+  const storageError = writeError || parsedArchive.error;
 
   function persist(next: MemoryArchive) {
     try {
       window.localStorage.setItem(MEMORY_STORAGE_KEY, JSON.stringify(next));
-      setArchive(next);
-      setStorageError("");
-      setStatus("ready");
+      setWriteError("");
+      window.dispatchEvent(new Event(ARCHIVE_CHANGE_EVENT));
       return true;
     } catch {
-      setStorageError(
+      setWriteError(
         "This browser is out of room. Try a smaller picture or remove site data.",
       );
-      setStatus("error");
       return false;
     }
   }
