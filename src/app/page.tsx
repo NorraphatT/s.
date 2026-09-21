@@ -1,5 +1,5 @@
-import { MemoryDesktop } from "@/components/memory-desktop";
+import { MemoryBento } from "@/components/memory-bento";
 
 export default function Home() {
-  return <MemoryDesktop />;
+  return <MemoryBento />;
 }
