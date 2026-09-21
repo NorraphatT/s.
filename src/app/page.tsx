@@ -1,5 +1,5 @@
-import { MemoryPage } from "@/components/memory-page";
+import { MemoryDesktop } from "@/components/memory-desktop";
 
 export default function Home() {
-  return <MemoryPage />;
+  return <MemoryDesktop />;
 }
